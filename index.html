@@ -477,6 +477,13 @@ main{position:relative;z-index:1}
     <button class="save-btn" onclick="saveClockEntry()" style="margin-top:4px">✅ Save Today's Entry</button>
   </div>
 
+  <!-- BULK IMPORT (one-time use — remove after import) -->
+  <div class="entry-card" style="margin-top:16px;border:2px solid var(--gold);background:linear-gradient(135deg,rgba(201,168,76,.07),#fff)">
+    <p class="entry-title" style="color:#8a6e1a">📥 Bulk Import (One-Time)</p>
+    <p style="font-size:11px;color:#6b7280;margin-bottom:14px;line-height:1.6">Tap once after deleting the old Firestore collection. All 71 records (Feb 16 – May 21) will be imported with corrected hour calculations. Remove this card from the code after done.</p>
+    <button class="save-btn" style="background:linear-gradient(135deg,var(--gold),var(--gold2));color:#1a1000;" onclick="bulkImport()">📥 Import All Records Now</button>
+  </div>
+
   <!-- MANUAL ENTRY -->
   <div class="entry-card" style="margin-top:16px">
     <p class="entry-title">✍️ Manual Entry</p>
@@ -642,49 +649,177 @@ function nowManilaDateStr(){
   return new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Manila'});
 }
 
-/** Compute total hours, OT, and undertime from the 4 time fields */
+/**
+ * Compute regular hours, OT hours, and undertime from the 4 time fields.
+ *
+ * Schedule:
+ *   AM block : 08:00 – 12:00  (4 regular hours)
+ *   Lunch    : 12:00 – 13:00  (excluded — not counted)
+ *   PM block : 13:00 – 17:00  (4 regular hours)
+ *   OT       : every minute past 17:00 PM-Out
+ *
+ * totalHrs  = regular hours only (AM regular + PM regular, max 8h).
+ *             OT minutes are NOT included here.
+ * otHrs     = minutes past 17:00, expressed in hours.
+ * undertimeHrs = minutes short of the full 8h schedule.
+ */
 function computeHours(amIn, amOut, pmIn, pmOut){
   function toMins(t){
     if(!t) return null;
-    const [h,m]=t.split(':').map(Number);
-    return h*60+m;
-  }
-  const amInM  = toMins(amIn)  ?? toMins(SCHEDULE.amIn);
-  const amOutM = toMins(amOut) ?? toMins(SCHEDULE.amOut);
-  const pmInM  = toMins(pmIn)  ?? toMins(SCHEDULE.pmIn);
-  const pmOutM = toMins(pmOut) ?? toMins(SCHEDULE.pmOut);
-  const otTrigM = toMins(SCHEDULE.otTrigger); // 17:00 = 1020 mins
-
-  // Scheduled baseline minutes
-  const schedAmInM  = toMins(SCHEDULE.amIn);   // 08:00 = 480
-  const schedAmOutM = toMins(SCHEDULE.amOut);  // 12:00 = 720
-  const schedPmInM  = toMins(SCHEDULE.pmIn);   // 13:00 = 780
-  const schedPmOutM = toMins(SCHEDULE.pmOut);  // 17:00 = 1020
-
-  const amHrs = Math.max(0, (amOutM - amInM)) / 60;
-  const pmHrs = Math.max(0, (pmOutM - pmInM)) / 60;
-
-  // OT: any minute past 17:00 PM out
-  let otHrs = 0;
-  if(pmOutM > otTrigM){
-    otHrs = (pmOutM - otTrigM) / 60;
+    const [h,m] = t.split(':').map(Number);
+    return h * 60 + m;
   }
 
-  // Undertime: minutes short of the scheduled day
+  const amInM  = toMins(amIn)  ?? toMins(SCHEDULE.amIn);   // default 08:00
+  const amOutM = toMins(amOut) ?? toMins(SCHEDULE.amOut);  // default 12:00
+  const pmInM  = toMins(pmIn)  ?? toMins(SCHEDULE.pmIn);   // default 13:00
+  const pmOutM = toMins(pmOut) ?? toMins(SCHEDULE.pmOut);  // default 17:00
+
+  const schedAmInM  = toMins(SCHEDULE.amIn);   // 480  (08:00)
+  const schedAmOutM = toMins(SCHEDULE.amOut);  // 720  (12:00)
+  const schedPmInM  = toMins(SCHEDULE.pmIn);   // 780  (13:00)
+  const schedPmOutM = toMins(SCHEDULE.pmOut);  // 1020 (17:00)
+  const otTrigM     = toMins(SCHEDULE.otTrigger); // 1020 (17:00)
+
+  // --- AM regular hours (capped at scheduled AM window) ---
+  // Only count from actual amIn up to amOut, but never past 12:00.
+  const amRegStart = Math.max(amInM,  schedAmInM);   // no credit for arriving before 8
+  const amRegEnd   = Math.min(amOutM, schedAmOutM);  // no credit for staying past 12
+  const amRegMins  = Math.max(0, amRegEnd - amRegStart);
+
+  // --- PM regular hours (capped at scheduled PM window 13:00–17:00) ---
+  // OT (past 17:00) is excluded from regular count.
+  const pmRegStart = Math.max(pmInM,  schedPmInM);   // no credit before 13:00
+  const pmRegEnd   = Math.min(pmOutM, schedPmOutM);  // cap at 17:00; OT not in total
+  const pmRegMins  = Math.max(0, pmRegEnd - pmRegStart);
+
+  const totalHrs = parseFloat(((amRegMins + pmRegMins) / 60).toFixed(2));
+
+  // --- OT: every minute past 17:00 ---
+  const otMins = pmOutM > otTrigM ? pmOutM - otTrigM : 0;
+  const otHrs  = parseFloat((otMins / 60).toFixed(2));
+
+  // --- Undertime: minutes short of the 8h schedule ---
   let utMins = 0;
-  if(amInM > schedAmInM)   utMins += (amInM - schedAmInM);   // late AM in
-  if(amOutM < schedAmOutM) utMins += (schedAmOutM - amOutM); // early AM out
-  if(pmInM > schedPmInM)   utMins += (pmInM - schedPmInM);   // late PM in
-  if(pmOutM < schedPmOutM) utMins += (schedPmOutM - pmOutM); // early PM out
+  if(amInM  > schedAmInM)  utMins += (amInM  - schedAmInM);   // late AM in
+  if(amOutM < schedAmOutM) utMins += (schedAmOutM - amOutM);  // early AM out
+  if(pmInM  > schedPmInM)  utMins += (pmInM  - schedPmInM);   // late PM in
+  // PM out early (only if before 17:00 — if they stayed for OT, no undertime)
+  if(pmOutM < schedPmOutM) utMins += (schedPmOutM - pmOutM);
   const undertimeHrs = parseFloat((utMins / 60).toFixed(2));
 
-  const totalHrs = amHrs + pmHrs;
-  return {
-    totalHrs: parseFloat(totalHrs.toFixed(2)),
-    otHrs: parseFloat(otHrs.toFixed(2)),
-    undertimeHrs
-  };
+  return { totalHrs, otHrs, undertimeHrs };
 }
+
+/* =========================================================
+   BULK IMPORT — paste records here, run once, then remove
+   Rules:  AM = 08:00–12:00, PM starts at 13:00
+           Minutes after 17:00 = OT; 12:00–13:00 not counted
+========================================================= */
+async function bulkImport(){
+  // Each entry: [date, amIn, amOut, pmIn, pmOut]
+  // amOut is always 12:00; pmIn is always 13:00 per your rules.
+  // If the original time-in is after 12:00 (e.g. 1:00 PM on MAY 04),
+  // we treat it as PM-only (amIn=amOut=12:00 so AM hours = 0).
+  const RAW = [
+    // FEB
+    ['2026-02-16','08:00','12:00','13:00','17:10'],
+    ['2026-02-18','08:00','12:00','13:00','17:00'],
+    ['2026-02-19','08:00','12:00','13:00','17:21'],
+    ['2026-02-20','08:00','12:00','13:00','17:15'],
+    ['2026-02-21','08:00','12:00','13:00','17:00'],
+    ['2026-02-23','08:00','12:00','13:00','17:00'],
+    ['2026-02-24','08:00','12:00','13:00','17:00'],
+    ['2026-02-25','08:00','12:00','13:00','17:05'],
+    ['2026-02-26','08:00','12:00','13:00','19:00'],
+    ['2026-02-27','08:00','12:00','13:00','17:10'],
+    ['2026-02-28','08:00','12:00','13:00','17:25'],
+    // MAR
+    ['2026-03-02','08:00','12:00','13:00','17:00'],
+    ['2026-03-03','08:00','12:00','13:00','17:00'],
+    ['2026-03-04','08:00','12:00','13:00','17:05'],
+    ['2026-03-05','08:00','12:00','13:00','17:00'],
+    ['2026-03-06','08:00','12:00','13:00','17:00'],
+    ['2026-03-07','08:00','12:00','13:00','17:00'],
+    ['2026-03-09','08:00','12:00','13:00','17:07'],
+    ['2026-03-10','08:00','12:00','13:00','17:15'],
+    ['2026-03-11','08:00','12:00','13:00','17:09'],
+    ['2026-03-12','08:00','12:00','13:00','17:08'],
+    ['2026-03-13','08:00','12:00','13:00','17:20'],
+    ['2026-03-14','08:00','12:00','13:00','17:00'],
+    ['2026-03-16','08:00','12:00','13:00','17:10'],
+    ['2026-03-17','08:00','12:00','13:00','17:00'],
+    ['2026-03-18','08:00','12:00','13:00','17:09'],
+    ['2026-03-19','08:00','12:00','13:00','17:09'],
+    ['2026-03-20','08:00','12:00','13:00','17:05'],
+    ['2026-03-24','08:00','12:00','13:00','17:13'],
+    ['2026-03-25','08:00','12:00','13:00','17:00'],
+    ['2026-03-26','08:00','12:00','13:00','17:15'],
+    ['2026-03-27','08:00','12:00','13:00','17:20'],
+    ['2026-03-28','08:00','12:00','13:00','17:08'],
+    ['2026-03-30','08:00','12:00','13:00','17:20'],
+    ['2026-03-31','08:00','12:00','13:00','17:00'],
+    // APR
+    ['2026-04-01','08:00','12:00','13:00','17:00'],
+    ['2026-04-06','08:00','12:00','13:00','21:45'],
+    ['2026-04-07','08:00','12:00','13:00','20:35'],
+    ['2026-04-08','08:00','12:00','13:00','20:23'],
+    ['2026-04-09','08:00','12:00','13:00','18:00'],
+    ['2026-04-10','08:00','12:00','13:00','17:54'],
+    ['2026-04-11','08:00','12:00','13:00','20:00'],
+    ['2026-04-14','08:00','12:00','13:00','20:25'],
+    ['2026-04-15','08:00','12:00','13:00','22:00'],
+    ['2026-04-16','08:00','12:00','13:00','20:00'],
+    ['2026-04-17','08:00','12:00','13:00','21:30'],
+    ['2026-04-18','08:00','12:00','13:00','19:00'],
+    ['2026-04-20','08:00','12:00','13:00','21:00'],
+    ['2026-04-21','08:00','12:00','13:00','20:00'],
+    ['2026-04-22','08:00','12:00','13:00','18:25'],
+    ['2026-04-23','08:00','12:00','13:00','22:00'],
+    ['2026-04-24','08:00','12:00','13:00','18:07'],
+    ['2026-04-25','08:00','12:00','13:00','17:00'],
+    ['2026-04-27','08:00','12:00','13:00','17:00'],
+    ['2026-04-28','08:00','12:00','13:00','20:00'],
+    ['2026-04-29','08:00','12:00','13:00','21:00'],
+    // MAY
+    // MAY 04: time-in 1:00 PM → PM only; no AM session
+    ['2026-05-04','12:00','12:00','13:00','20:00'],
+    ['2026-05-05','08:00','12:00','13:00','21:00'],
+    ['2026-05-06','08:00','12:00','13:00','19:00'],
+    ['2026-05-07','08:00','12:00','13:00','18:00'],
+    // MAY 08: time-in 8:06 → slightly late; treat as 08:06 amIn
+    ['2026-05-08','08:06','12:00','13:00','17:00'],
+    ['2026-05-09','08:00','12:00','13:00','19:00'],
+    // MAY 11: time-in 8:10; PM out 9:30 PM
+    ['2026-05-11','08:10','12:00','13:00','21:30'],
+    ['2026-05-12','08:00','12:00','13:00','20:40'],
+    ['2026-05-13','08:00','12:00','13:00','18:00'],
+    ['2026-05-14','08:00','12:00','13:00','22:00'],
+    ['2026-05-15','08:00','12:00','13:00','20:00'],
+    // MAY 16: time-in 8:04
+    ['2026-05-16','08:04','12:00','13:00','18:00'],
+    // MAY 18: time-in 10:00; PM out 9:30 PM — late start, undertime on AM
+    ['2026-05-18','10:00','12:00','13:00','21:30'],
+    ['2026-05-19','08:00','12:00','13:00','20:00'],
+    ['2026-05-20','08:00','12:00','13:00','21:30'],
+    ['2026-05-21','08:00','12:00','13:00','21:30'],
+  ];
+
+  let count = 0;
+  const coll = db.collection('emp_attendance');
+
+  for(const [date, amIn, amOut, pmIn, pmOut] of RAW){
+    const { totalHrs, otHrs, undertimeHrs } = computeHours(amIn, amOut, pmIn, pmOut);
+    const isHoliday = false;
+    const isOT = otHrs > 0;
+    await coll.add({ date, amIn, amOut, pmIn, pmOut, totalHrs, otHrs, undertimeHrs, isOT, isHoliday });
+    count++;
+  }
+
+  toast('Import Done! ✅', `${count} records imported successfully.`, 'success');
+  fetchOjtData();
+}
+
 
 /* =========================================================
    FETCH DATA
