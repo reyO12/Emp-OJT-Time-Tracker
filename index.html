@@ -393,6 +393,15 @@ main{position:relative;z-index:1}
     </div>
   </div>
 
+  <div class="target-card">
+    <div class="target-icon">🎯</div>
+    <div style="flex:1">
+      <p class="target-lbl">Projected Finish</p>
+      <p class="target-date" id="target-date-display">Calculating…</p>
+      <p class="target-days" id="target-days-display">Loading…</p>
+    </div>
+  </div>
+
   <div class="schedule-info">
     <div class="sched-block">
       <p class="sched-lbl">🌅 Morning</p>
@@ -691,9 +700,9 @@ function renderDash(){
   const days = ALL_LOGS.length;
   const otDays = ALL_LOGS.filter(l=>(l.otHrs||0)>0 || l.isHoliday).length;
 
-  // 729 as reference gauge (feel free to change)
   const TARGET = 729;
   const pct = Math.min(100,(total/TARGET)*100).toFixed(1);
+  const remaining = Math.max(0, TARGET - total);
 
   document.getElementById('hours-logged').textContent = total.toFixed(1);
   document.getElementById('progress-bar').style.width = pct+'%';
@@ -702,6 +711,37 @@ function renderDash(){
   document.getElementById('avg-hours').textContent = days>0?(total/days).toFixed(1)+'h':'0h';
   document.getElementById('ot-hours-dash').textContent = otTotal.toFixed(1)+'h';
   document.getElementById('ot-days-dash').textContent = otDays;
+
+  // --- Projected finish & days remaining ---
+  const avgPerDay = days > 0 ? total / days : 8;
+  const daysNeeded = avgPerDay > 0 ? Math.ceil(remaining / avgPerDay) : 0;
+
+  // Walk forward counting Mon-Sat workdays to find projected end date
+  const todayStr = new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Manila'});
+  const todayManila = new Date(todayStr + 'T00:00:00');
+  let projDate = new Date(todayManila);
+  if(remaining <= 0){
+    // already done
+  } else {
+    let counted = 0;
+    let iter = 0;
+    while(counted < daysNeeded && iter < 1000){
+      const dow = projDate.getDay();
+      if(dow >= 1 && dow <= 6) counted++;
+      if(counted < daysNeeded) projDate.setDate(projDate.getDate()+1);
+      iter++;
+    }
+  }
+
+  const projOpts = {month:'short', day:'numeric', year:'numeric'};
+  const projDateStr = remaining <= 0 ? 'Completed! 🎉' : projDate.toLocaleDateString('en-US', projOpts);
+  const calDaysLeft = remaining <= 0 ? 0 : Math.round((projDate - todayManila) / 86400000);
+
+  document.getElementById('target-date-display').textContent = projDateStr;
+  document.getElementById('target-days-display').textContent =
+    remaining <= 0
+      ? 'Target reached!'
+      : `${calDaysLeft} day${calDaysLeft!==1?'s':''} away · ${remaining.toFixed(1)}h left`;
 
   const recent=[...ALL_LOGS].slice(0,3);
   document.getElementById('recent-logs').innerHTML=recent.length
@@ -923,13 +963,27 @@ const DTR_EPOCH = new Date('2026-02-16T00:00:00');
 
 function globalWeekNum(dateStr){
   const d = new Date(dateStr + 'T00:00:00');
-  const diffDays = Math.floor((d - DTR_EPOCH) / 86400000);
-  if(diffDays < 0) return null;
-  return Math.floor(diffDays / 7) + 1;
+  // Find the Monday on or before this date
+  const dow = d.getDay(); // 0=Sun,1=Mon,...,6=Sat
+  const daysToMon = dow === 0 ? -6 : 1 - dow; // shift to Monday
+  const monday = new Date(d.getTime() + daysToMon * 86400000);
+  // Snap epoch to its Monday (Feb 16 2026 is already a Monday)
+  const epochMon = new Date(DTR_EPOCH.getTime());
+  const epochDow = epochMon.getDay();
+  const epochDaysToMon = epochDow === 0 ? -6 : 1 - epochDow;
+  epochMon.setDate(epochMon.getDate() + epochDaysToMon);
+  const diffMs = monday - epochMon;
+  if(diffMs < 0) return null;
+  return Math.floor(diffMs / (7 * 86400000)) + 1;
 }
 
 function globalWeekSundayOf(weekNum){
-  return new Date(DTR_EPOCH.getTime() + (weekNum - 1) * 7 * 86400000);
+  // Return the Monday of that week
+  const epochMon = new Date(DTR_EPOCH.getTime());
+  const epochDow = epochMon.getDay();
+  const epochDaysToMon = epochDow === 0 ? -6 : 1 - epochDow;
+  epochMon.setDate(epochMon.getDate() + epochDaysToMon);
+  return new Date(epochMon.getTime() + (weekNum - 1) * 7 * 86400000);
 }
 
 function renderDTR(){
@@ -966,8 +1020,8 @@ function renderDTR(){
 
   sortedWeeks.forEach(([weekNum, days]) => {
     let weekTotal = 0, weekOT = 0;
-    const wkStart = globalWeekSundayOf(weekNum);
-    const wkEnd   = new Date(wkStart.getTime() + 6*86400000);
+    const wkStart = globalWeekSundayOf(weekNum); // this is the Monday
+    const wkEnd   = new Date(wkStart.getTime() + 5*86400000); // Saturday
     const wkRange = `${SHORT_MONTHS[wkStart.getMonth()]} ${wkStart.getDate()} – ${SHORT_MONTHS[wkEnd.getMonth()]} ${wkEnd.getDate()}`;
     tbodyHtml += `<tr class="week-header-row"><td colspan="7">Week ${weekNum} &nbsp;·&nbsp; ${wkRange}</td></tr>`;
 
