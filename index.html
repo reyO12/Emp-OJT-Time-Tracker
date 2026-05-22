@@ -186,6 +186,7 @@ main{position:relative;z-index:1}
 .dtr-table td.time-val{font-weight:600;color:#1e3a1e;font-size:10px;}
 .dtr-table td.daily-total{font-weight:800;color:#1a1000;font-size:10.5px;background:rgba(201,168,76,.12);}
 .dtr-table td.ot-val{font-weight:600;color:var(--red);font-size:10px;background:rgba(181,35,46,.05);}
+.dtr-table td.ut-val{font-weight:600;color:#d97706;font-size:10px;background:rgba(217,119,6,.06);}
 .dtr-table tbody tr.sat-row{background:linear-gradient(90deg,rgba(201,168,76,.07),rgba(201,168,76,.02));}
 .dtr-table tbody tr.sat-row td.td-date{color:#8a6e1a;}
 .dtr-table tbody tr.sat-row td.daily-total{background:rgba(201,168,76,.1);color:#7a5500;}
@@ -330,7 +331,7 @@ main{position:relative;z-index:1}
       <label class="tier-radio-option tier-r-regular selected" onclick="selectEditTier(this,'regular')">
         <input type="radio" name="edit-tier" value="regular" checked>
         <div class="tier-radio-dot"></div>
-        <div class="tier-radio-info"><div class="tier-radio-hrs">Regular Day</div><div class="tier-radio-desc">8 AM–12 PM · 1–5 PM · OT after 5:20 PM</div></div>
+        <div class="tier-radio-info"><div class="tier-radio-hrs">Regular Day</div><div class="tier-radio-desc">8 AM–12 PM · 1–5 PM · OT after 5:00 PM</div></div>
         <span class="tier-tag tag-regular">Regular</span>
       </label>
       <label class="tier-radio-option tier-r-holiday" onclick="selectEditTier(this,'holiday')">
@@ -415,8 +416,8 @@ main{position:relative;z-index:1}
     </div>
     <div class="sched-block" style="grid-column:1/-1;border-top:1px solid rgba(26,58,42,.1);padding-top:8px">
       <p class="sched-lbl">⏰ Overtime Trigger</p>
-      <p class="sched-val" style="color:var(--red)">After 5:20 PM</p>
-      <p class="sched-sub">Every minute past 5:20 PM counts as OT</p>
+      <p class="sched-val" style="color:var(--red)">After 5:00 PM</p>
+      <p class="sched-sub">Every minute past 5:00 PM counts as OT</p>
     </div>
   </div>
 
@@ -462,7 +463,7 @@ main{position:relative;z-index:1}
       <label class="tier-radio-option tier-r-regular selected" onclick="selectClockTier(this,'regular')">
         <input type="radio" name="clock-tier" value="regular" checked>
         <div class="tier-radio-dot"></div>
-        <div class="tier-radio-info"><div class="tier-radio-hrs">Regular Day</div><div class="tier-radio-desc">Normal 8h duty · OT after 5:20 PM</div></div>
+        <div class="tier-radio-info"><div class="tier-radio-hrs">Regular Day</div><div class="tier-radio-desc">Normal 8h duty · OT after 5:00 PM</div></div>
         <span class="tier-tag tag-regular">Regular</span>
       </label>
       <label class="tier-radio-option tier-r-holiday" onclick="selectClockTier(this,'holiday')">
@@ -502,14 +503,14 @@ main{position:relative;z-index:1}
         <input type="time" class="form-input" id="man-pm-out" value="17:00">
       </div>
     </div>
-    <p class="actual-time-note">⏰ Overtime is auto-computed — any PM Out past 5:20 PM counts as OT.</p>
+    <p class="actual-time-note">⏰ Overtime is auto-computed — any PM Out past 5:00 PM counts as OT.</p>
 
     <div class="field-lbl">Day Type</div>
     <div class="tier-radio-group" id="man-tier-group">
       <label class="tier-radio-option tier-r-regular selected" onclick="selectManualTier(this,'regular')">
         <input type="radio" name="man-tier" value="regular" checked>
         <div class="tier-radio-dot"></div>
-        <div class="tier-radio-info"><div class="tier-radio-hrs">Regular Day</div><div class="tier-radio-desc">Normal 8h · OT auto-computed after 5:20 PM</div></div>
+        <div class="tier-radio-info"><div class="tier-radio-hrs">Regular Day</div><div class="tier-radio-desc">Normal 8h · OT auto-computed after 5:00 PM</div></div>
         <span class="tier-tag tag-regular">Regular</span>
       </label>
       <label class="tier-radio-option tier-r-holiday" onclick="selectManualTier(this,'holiday')">
@@ -537,7 +538,7 @@ main{position:relative;z-index:1}
     <button class="dtr-arrow" onclick="dtrNext()">▶</button>
   </div>
 
-  <div class="ot-badge">⏰ OT triggers after 5:20 PM afternoon out</div>
+  <div class="ot-badge">⏰ OT triggers after 5:00 PM afternoon out</div>
 
   <div class="dtr-outer">
     <div class="dtr-scroll">
@@ -548,6 +549,7 @@ main{position:relative;z-index:1}
             <th colspan="2" class="th-morning">Morning</th>
             <th colspan="2" class="th-afternoon">Afternoon</th>
             <th colspan="1" class="th-ot">OT Hrs</th>
+            <th colspan="1" style="background:rgba(217,119,6,.35);min-width:44px">UT Hrs</th>
             <th rowspan="2" style="background:rgba(0,0,0,.25);min-width:44px">Daily<br>Hrs</th>
           </tr>
           <tr class="th-sub">
@@ -555,6 +557,7 @@ main{position:relative;z-index:1}
             <th>IN</th><th>OUT</th>
             <th>IN</th><th>OUT</th>
             <th class="sub-ot">OT</th>
+            <th style="background:rgba(217,119,6,.3);color:rgba(255,255,255,.85)">UT</th>
             <th class="sub-tot"></th>
           </tr>
         </thead>
@@ -567,6 +570,7 @@ main{position:relative;z-index:1}
     <div class="dtr-sum-card"><p class="dtr-sum-lbl">This Month</p><p class="dtr-sum-val green" id="dtr-month-total">0h</p></div>
     <div class="dtr-sum-card"><p class="dtr-sum-lbl">Days Worked</p><p class="dtr-sum-val gold" id="dtr-days-worked">0</p></div>
     <div class="dtr-sum-card"><p class="dtr-sum-lbl">OT This Month</p><p class="dtr-sum-val red" id="dtr-ot-month">0h</p></div>
+    <div class="dtr-sum-card"><p class="dtr-sum-lbl">Undertime</p><p class="dtr-sum-val" style="color:#d97706;font-size:22px;font-weight:900;margin-top:3px" id="dtr-ut-month">0h</p></div>
     <div class="dtr-sum-card"><p class="dtr-sum-lbl">Holiday Days</p><p class="dtr-sum-val dkgreen" id="dtr-holiday-month">0</p></div>
   </div>
 </section>
@@ -614,7 +618,7 @@ const SCHEDULE = {
   amOut: '12:00',
   pmIn:  '13:00',
   pmOut: '17:00',
-  otTrigger: '17:20'   // 5:20 PM
+  otTrigger: '17:00'   // 5:00 PM — any minute past 17:00 counts as OT
 };
 
 /* =========================================================
@@ -638,7 +642,7 @@ function nowManilaDateStr(){
   return new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Manila'});
 }
 
-/** Compute total hours and OT from the 4 time fields */
+/** Compute total hours, OT, and undertime from the 4 time fields */
 function computeHours(amIn, amOut, pmIn, pmOut){
   function toMins(t){
     if(!t) return null;
@@ -649,16 +653,37 @@ function computeHours(amIn, amOut, pmIn, pmOut){
   const amOutM = toMins(amOut) ?? toMins(SCHEDULE.amOut);
   const pmInM  = toMins(pmIn)  ?? toMins(SCHEDULE.pmIn);
   const pmOutM = toMins(pmOut) ?? toMins(SCHEDULE.pmOut);
-  const otTrigM = toMins(SCHEDULE.otTrigger); // 17:20 = 1040 mins
+  const otTrigM = toMins(SCHEDULE.otTrigger); // 17:00 = 1020 mins
+
+  // Scheduled baseline minutes
+  const schedAmInM  = toMins(SCHEDULE.amIn);   // 08:00 = 480
+  const schedAmOutM = toMins(SCHEDULE.amOut);  // 12:00 = 720
+  const schedPmInM  = toMins(SCHEDULE.pmIn);   // 13:00 = 780
+  const schedPmOutM = toMins(SCHEDULE.pmOut);  // 17:00 = 1020
 
   const amHrs = Math.max(0, (amOutM - amInM)) / 60;
   const pmHrs = Math.max(0, (pmOutM - pmInM)) / 60;
+
+  // OT: any minute past 17:00 PM out
   let otHrs = 0;
   if(pmOutM > otTrigM){
     otHrs = (pmOutM - otTrigM) / 60;
   }
+
+  // Undertime: minutes short of the scheduled day
+  let utMins = 0;
+  if(amInM > schedAmInM)   utMins += (amInM - schedAmInM);   // late AM in
+  if(amOutM < schedAmOutM) utMins += (schedAmOutM - amOutM); // early AM out
+  if(pmInM > schedPmInM)   utMins += (pmInM - schedPmInM);   // late PM in
+  if(pmOutM < schedPmOutM) utMins += (schedPmOutM - pmOutM); // early PM out
+  const undertimeHrs = parseFloat((utMins / 60).toFixed(2));
+
   const totalHrs = amHrs + pmHrs;
-  return { totalHrs: parseFloat(totalHrs.toFixed(2)), otHrs: parseFloat(otHrs.toFixed(2)) };
+  return {
+    totalHrs: parseFloat(totalHrs.toFixed(2)),
+    otHrs: parseFloat(otHrs.toFixed(2)),
+    undertimeHrs
+  };
 }
 
 /* =========================================================
@@ -867,16 +892,16 @@ async function saveClockEntry(){
   const pmIn  = clockState.pmIn  || SCHEDULE.pmIn;
   const pmOut = clockState.pmOut || SCHEDULE.pmOut;
 
-  const { totalHrs, otHrs } = computeHours(amIn, amOut, pmIn, pmOut);
+  const { totalHrs, otHrs, undertimeHrs } = computeHours(amIn, amOut, pmIn, pmOut);
   const isHoliday = selectedClockTier === 'holiday';
   const isOT = otHrs > 0 || isHoliday;
 
   await db.collection("emp_attendance").add({
     date, amIn, amOut, pmIn, pmOut,
-    totalHrs, otHrs, isOT, isHoliday
+    totalHrs, otHrs, undertimeHrs, isOT, isHoliday
   });
 
-  toast('Saved! ✅', `${totalHrs.toFixed(1)}h logged${otHrs>0?' (+'+otHrs.toFixed(2)+'h OT)':''}${isHoliday?' [Holiday]':''} for ${date}.`,'success');
+  toast('Saved! ✅', `${totalHrs.toFixed(1)}h logged${otHrs>0?' (+'+otHrs.toFixed(2)+'h OT)':''}${undertimeHrs>0?' (-'+undertimeHrs.toFixed(2)+'h UT)':''}${isHoliday?' [Holiday]':''} for ${date}.`,'success');
 
   // Reset clock state
   clockState = { amIn:null, amOut:null, pmIn:null, pmOut:null };
@@ -925,16 +950,16 @@ async function saveManual(){
   const pmIn  = document.getElementById('man-pm-in').value  || SCHEDULE.pmIn;
   const pmOut = document.getElementById('man-pm-out').value || SCHEDULE.pmOut;
 
-  const { totalHrs, otHrs } = computeHours(amIn, amOut, pmIn, pmOut);
+  const { totalHrs, otHrs, undertimeHrs } = computeHours(amIn, amOut, pmIn, pmOut);
   const isHoliday = selectedManualTier === 'holiday';
   const isOT = otHrs > 0 || isHoliday;
 
   await db.collection("emp_attendance").add({
     date, amIn, amOut, pmIn, pmOut,
-    totalHrs, otHrs, isOT, isHoliday
+    totalHrs, otHrs, undertimeHrs, isOT, isHoliday
   });
 
-  toast('Saved!',`${totalHrs.toFixed(1)}h added for ${date}${otHrs>0?' (+'+otHrs.toFixed(2)+'h OT)':''}${isHoliday?' [Holiday]':''}.`,'success');
+  toast('Saved!',`${totalHrs.toFixed(1)}h added for ${date}${otHrs>0?' (+'+otHrs.toFixed(2)+'h OT)':''}${undertimeHrs>0?' (-'+undertimeHrs.toFixed(2)+'h UT)':''}${isHoliday?' [Holiday]':''}.`,'success');
   fetchOjtData();
 }
 
@@ -977,8 +1002,8 @@ function globalWeekNum(dateStr){
   return Math.floor(diffMs / (7 * 86400000)) + 1;
 }
 
-function globalWeekSundayOf(weekNum){
-  // Return the Monday of that week
+function globalWeekMondayOf(weekNum){
+  // Return the Monday of that week (Mon-anchored, Mon–Sat = 6 workdays)
   const epochMon = new Date(DTR_EPOCH.getTime());
   const epochDow = epochMon.getDay();
   const epochDaysToMon = epochDow === 0 ? -6 : 1 - epochDow;
@@ -996,7 +1021,7 @@ function renderDTR(){
   monthLogs.forEach(l => logMap[l.date] = l);
 
   const allDays = workdaysInMonth(dtrYear, dtrMonth);
-  let monthTotal = 0, monthOT = 0, daysWorked = 0, holidayDays = 0;
+  let monthTotal = 0, monthOT = 0, monthUT = 0, daysWorked = 0, holidayDays = 0;
 
   const weekMap = new Map();
   allDays.forEach(dateStr => {
@@ -1019,11 +1044,11 @@ function renderDTR(){
   let tbodyHtml = '';
 
   sortedWeeks.forEach(([weekNum, days]) => {
-    let weekTotal = 0, weekOT = 0;
-    const wkStart = globalWeekSundayOf(weekNum); // this is the Monday
-    const wkEnd   = new Date(wkStart.getTime() + 5*86400000); // Saturday
+    let weekTotal = 0, weekOT = 0, weekUT = 0;
+    const wkStart = globalWeekMondayOf(weekNum); // Monday anchor
+    const wkEnd   = new Date(wkStart.getTime() + 5*86400000); // Saturday (Mon+5)
     const wkRange = `${SHORT_MONTHS[wkStart.getMonth()]} ${wkStart.getDate()} – ${SHORT_MONTHS[wkEnd.getMonth()]} ${wkEnd.getDate()}`;
-    tbodyHtml += `<tr class="week-header-row"><td colspan="7">Week ${weekNum} &nbsp;·&nbsp; ${wkRange}</td></tr>`;
+    tbodyHtml += `<tr class="week-header-row"><td colspan="8">Week ${weekNum} &nbsp;·&nbsp; ${wkRange}</td></tr>`;
 
     days.forEach(dateStr => {
       const dateLabel = formatDate(dateStr);
@@ -1038,10 +1063,14 @@ function renderDTR(){
         weekTotal  += (log.totalHrs||0);
         daysWorked++;
         if((log.otHrs||0)>0){ weekOT += (log.otHrs||0); monthOT += (log.otHrs||0); }
+        if((log.undertimeHrs||0)>0){ weekUT += (log.undertimeHrs||0); monthUT += (log.undertimeHrs||0); }
         if(isHol) holidayDays++;
 
         const otTd = (log.otHrs||0) > 0
           ? `<td class="ot-val">+${(log.otHrs).toFixed(2)}h</td>`
+          : `<td class="no-duty">—</td>`;
+        const utTd = (log.undertimeHrs||0) > 0
+          ? `<td class="ut-val">-${(log.undertimeHrs).toFixed(2)}h</td>`
           : `<td class="no-duty">—</td>`;
 
         tbodyHtml += `<tr${rowCls}>
@@ -1051,16 +1080,18 @@ function renderDTR(){
           <td class="time-val">${to12hr(log.pmIn||SCHEDULE.pmIn)}</td>
           <td class="time-val">${to12hr(log.pmOut||SCHEDULE.pmOut)}</td>
           ${otTd}
+          ${utTd}
           <td class="daily-total">${(log.totalHrs||0).toFixed(1)}h</td>
         </tr>`;
       } else {
-        tbodyHtml += `<tr><td class="td-date">${dateLabel}</td>${E}${E}${E}${E}${E}${E}</tr>`;
+        tbodyHtml += `<tr><td class="td-date">${dateLabel}</td>${E}${E}${E}${E}${E}${E}${E}</tr>`;
       }
     });
 
     tbodyHtml += `<tr class="week-total-row">
       <td colspan="5" style="text-align:left;padding-left:12px">Week ${weekNum} Total</td>
       <td class="ot-val">${weekOT>0?'+'+weekOT.toFixed(2)+'h':'—'}</td>
+      <td class="ut-val" style="font-weight:800">${weekUT>0?'-'+weekUT.toFixed(2)+'h':'—'}</td>
       <td>${weekTotal.toFixed(1)}h</td>
     </tr>`;
   });
@@ -1068,6 +1099,7 @@ function renderDTR(){
   tbodyHtml += `<tr class="month-total-row">
     <td colspan="5" style="text-align:left;padding-left:12px">${MONTHS[dtrMonth]} Total</td>
     <td style="color:var(--red);font-weight:900">${monthOT>0?'+'+monthOT.toFixed(2)+'h':'—'}</td>
+    <td style="color:#d97706;font-weight:900">${monthUT>0?'-'+monthUT.toFixed(2)+'h':'—'}</td>
     <td>${monthTotal.toFixed(1)}h</td>
   </tr>`;
 
@@ -1075,6 +1107,7 @@ function renderDTR(){
   document.getElementById('dtr-month-total').textContent = monthTotal.toFixed(1)+'h';
   document.getElementById('dtr-days-worked').textContent = daysWorked;
   document.getElementById('dtr-ot-month').textContent = monthOT.toFixed(2)+'h';
+  document.getElementById('dtr-ut-month').textContent = monthUT.toFixed(2)+'h';
   document.getElementById('dtr-holiday-month').textContent = holidayDays;
 }
 
@@ -1258,13 +1291,13 @@ async function saveEdit(){
   const pmIn  = document.getElementById('edit-pm-in').value  || SCHEDULE.pmIn;
   const pmOut = document.getElementById('edit-pm-out').value || SCHEDULE.pmOut;
 
-  const { totalHrs, otHrs } = computeHours(amIn, amOut, pmIn, pmOut);
+  const { totalHrs, otHrs, undertimeHrs } = computeHours(amIn, amOut, pmIn, pmOut);
   const isHoliday = selectedEditTier === 'holiday';
   const isOT = otHrs > 0 || isHoliday;
 
   await db.collection("emp_attendance").doc(docId).update({
     date, amIn, amOut, pmIn, pmOut,
-    totalHrs, otHrs, isOT, isHoliday
+    totalHrs, otHrs, undertimeHrs, isOT, isHoliday
   });
 
   closeEditModal();
