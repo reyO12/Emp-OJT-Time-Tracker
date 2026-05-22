@@ -977,14 +977,20 @@ function workdaysInMonth(year,month){
   const days=[];
   const d=new Date(year,month,1);
   while(d.getMonth()===month){
-    const dow=d.getDay();
-    if(dow>=1&&dow<=6) days.push(d.toISOString().split('T')[0]);
+    const dow=d.getDay(); // local day-of-week
+    if(dow>=1&&dow<=6){
+      // Build date string from local year/month/date (NOT toISOString which is UTC)
+      const yyyy = d.getFullYear();
+      const mm   = String(d.getMonth()+1).padStart(2,'0');
+      const dd   = String(d.getDate()).padStart(2,'0');
+      days.push(`${yyyy}-${mm}-${dd}`);
+    }
     d.setDate(d.getDate()+1);
   }
   return days;
 }
 
-const DTR_EPOCH = new Date('2026-02-16T00:00:00');
+const DTR_EPOCH = new Date(2026, 1, 16); // Feb 16 2026 — local time (avoids UTC shift)
 
 function globalWeekNum(dateStr){
   const d = new Date(dateStr + 'T00:00:00');
@@ -1114,7 +1120,7 @@ function renderDTR(){
 /* =========================================================
    JOURNAL
 ========================================================= */
-const OJT_START = new Date('2026-02-16T00:00:00');
+const OJT_START = new Date(2026, 1, 16); // Feb 16 2026 — local time
 
 function getWeekKey(dateStr){
   const d = new Date(dateStr + 'T00:00:00');
