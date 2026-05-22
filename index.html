@@ -167,7 +167,7 @@ main{position:relative;z-index:1}
 /* PAYSLIP-STYLE DTR TABLE */
 .dtr-outer{background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 4px 18px var(--shadow-green);border:1px solid var(--border);margin-bottom:14px;}
 .dtr-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
-.dtr-table{width:100%;border-collapse:collapse;font-size:10px;min-width:560px;}
+.dtr-table{width:100%;border-collapse:collapse;font-size:10px;min-width:620px;}
 .dtr-table .th-group{background:linear-gradient(135deg,var(--green),var(--green2));}
 .dtr-table .th-group th{color:#fff;font-weight:800;padding:8px 7px;text-align:center;font-size:9px;text-transform:uppercase;letter-spacing:.6px;border:1px solid rgba(255,255,255,.15);}
 .dtr-table .th-group th.th-date{text-align:left;padding-left:12px;min-width:80px;}
@@ -386,6 +386,7 @@ main{position:relative;z-index:1}
     <p class="hero-lbl">Total Hours Logged</p>
     <div class="hero-num" id="hours-logged">0.0</div>
     <p class="hero-sub">hours rendered since Feb 16, 2026</p>
+    <p class="hero-sub" id="hero-sub" style="margin-top:4px"></p>
     <div class="prog-track"><div class="prog-fill" id="progress-bar" style="width:0%"></div></div>
     <div class="hero-stats">
       <div><p class="hstat-lbl">Days Logged</p><p class="hstat-val" id="days-count">0</p></div>
@@ -477,12 +478,7 @@ main{position:relative;z-index:1}
     <button class="save-btn" onclick="saveClockEntry()" style="margin-top:4px">✅ Save Today's Entry</button>
   </div>
 
-  <!-- BULK IMPORT (one-time use — remove after import) -->
-  <div class="entry-card" style="margin-top:16px;border:2px solid var(--gold);background:linear-gradient(135deg,rgba(201,168,76,.07),#fff)">
-    <p class="entry-title" style="color:#8a6e1a">📥 Bulk Import (One-Time)</p>
-    <p style="font-size:11px;color:#6b7280;margin-bottom:14px;line-height:1.6">Tap once after deleting the old Firestore collection. All 71 records (Feb 16 – May 21) will be imported with corrected hour calculations. Remove this card from the code after done.</p>
-    <button class="save-btn" style="background:linear-gradient(135deg,var(--gold),var(--gold2));color:#1a1000;" onclick="bulkImport()">📥 Import All Records Now</button>
-  </div>
+
 
   <!-- MANUAL ENTRY -->
   <div class="entry-card" style="margin-top:16px">
@@ -557,7 +553,8 @@ main{position:relative;z-index:1}
             <th colspan="2" class="th-afternoon">Afternoon</th>
             <th colspan="1" class="th-ot">OT Hrs</th>
             <th colspan="1" style="background:rgba(217,119,6,.35);min-width:44px">UT Hrs</th>
-            <th rowspan="2" style="background:rgba(0,0,0,.25);min-width:44px">Daily<br>Hrs</th>
+            <th rowspan="2" style="background:rgba(0,0,0,.25);min-width:44px">Reg<br>Hrs</th>
+            <th rowspan="2" style="background:rgba(26,58,42,.55);min-width:48px;color:#ffe08a">Total<br>Day Hrs</th>
           </tr>
           <tr class="th-sub">
             <th class="th-date-sub"></th>
@@ -566,6 +563,7 @@ main{position:relative;z-index:1}
             <th class="sub-ot">OT</th>
             <th style="background:rgba(217,119,6,.3);color:rgba(255,255,255,.85)">UT</th>
             <th class="sub-tot"></th>
+            <th class="sub-tot" style="background:rgba(26,58,42,.3)"></th>
           </tr>
         </thead>
         <tbody id="dtr-tbody"></tbody>
@@ -855,8 +853,9 @@ function toast(title, msg, type='success'){
    DASHBOARD
 ========================================================= */
 function renderDash(){
-  const total = ALL_LOGS.reduce((s,l)=>s+(l.totalHrs||0),0);
+  const regTotal = ALL_LOGS.reduce((s,l)=>s+(l.totalHrs||0),0);
   const otTotal = ALL_LOGS.reduce((s,l)=>s+(l.otHrs||0),0);
+  const total = regTotal + otTotal;
   const days = ALL_LOGS.length;
   const otDays = ALL_LOGS.filter(l=>(l.otHrs||0)>0 || l.isHoliday).length;
 
@@ -872,11 +871,24 @@ function renderDash(){
   document.getElementById('ot-hours-dash').textContent = otTotal.toFixed(1)+'h';
   document.getElementById('ot-days-dash').textContent = otDays;
 
+  // --- Hero breakdown sub-line ---
+  const heroSub = document.getElementById('hero-sub');
+  if(heroSub){
+    heroSub.innerHTML = `
+      <span style="color:rgba(255,255,255,.55);font-size:10px">
+        ${regTotal.toFixed(1)}h reg &nbsp;+&nbsp;
+        <span style="color:#ffc8c8">${otTotal.toFixed(1)}h OT</span>
+        &nbsp;=&nbsp;
+        <span style="color:#ffe08a;font-weight:800">${total.toFixed(1)}h total</span>
+        &nbsp;·&nbsp;
+        <span style="color:#a8f0c8;font-weight:800">${pct}%</span> of ${TARGET}h
+      </span>`;
+  }
+
   // --- Projected finish & days remaining ---
   const avgPerDay = days > 0 ? total / days : 8;
   const daysNeeded = avgPerDay > 0 ? Math.ceil(remaining / avgPerDay) : 0;
 
-  // Walk forward counting Mon-Sat workdays to find projected end date
   const todayStr = new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Manila'});
   const todayManila = new Date(todayStr + 'T00:00:00');
   let projDate = new Date(todayManila);
@@ -923,14 +935,19 @@ function logPillHtml(l, showActions){
         <button class="btn-del" onclick="openDelModal('${l.id}','${l.date}')">🗑️</button>
        </div>`
     : '';
+  // Total for the day = regular hours + OT hours
+  const totalDayHrs = (l.totalHrs||0) + (l.otHrs||0);
+  const breakdownStr = isOT
+    ? `${(l.totalHrs||0).toFixed(1)}h reg + ${(l.otHrs||0).toFixed(2)}h OT`
+    : `${(l.totalHrs||0).toFixed(1)}h regular`;
   return `<div class="${pillCls}">
     <div style="flex:1;min-width:0">
       <p class="log-date">${l.date}${badge}</p>
       <p class="log-site" style="font-size:8.5px">${timeStr}</p>
-      ${isOT?`<p class="log-site" style="color:var(--red);font-size:8px">+${(l.otHrs||0).toFixed(2)}h OT</p>`:''}
+      <p class="log-site" style="font-size:8px;color:#9ca3af">${breakdownStr}</p>
     </div>
     <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-      <p class="log-hrs">${(l.totalHrs||0).toFixed(1)}h</p>
+      <p class="log-hrs">${totalDayHrs.toFixed(1)}h</p>
       ${actionsHtml}
     </div>
   </div>`;
@@ -1223,9 +1240,10 @@ function renderDTR(){
           ${otTd}
           ${utTd}
           <td class="daily-total">${(log.totalHrs||0).toFixed(1)}h</td>
+          <td class="daily-total" style="background:rgba(26,58,42,.13);color:var(--green);font-size:11px;">${((log.totalHrs||0)+(log.otHrs||0)).toFixed(1)}h</td>
         </tr>`;
       } else {
-        tbodyHtml += `<tr><td class="td-date">${dateLabel}</td>${E}${E}${E}${E}${E}${E}${E}</tr>`;
+        tbodyHtml += `<tr><td class="td-date">${dateLabel}</td>${E}${E}${E}${E}${E}${E}${E}${E}</tr>`;
       }
     });
 
@@ -1234,6 +1252,7 @@ function renderDTR(){
       <td class="ot-val">${weekOT>0?'+'+weekOT.toFixed(2)+'h':'—'}</td>
       <td class="ut-val" style="font-weight:800">${weekUT>0?'-'+weekUT.toFixed(2)+'h':'—'}</td>
       <td>${weekTotal.toFixed(1)}h</td>
+      <td style="font-weight:900;color:var(--green)">${(weekTotal+weekOT).toFixed(1)}h</td>
     </tr>`;
   });
 
@@ -1242,6 +1261,7 @@ function renderDTR(){
     <td style="color:var(--red);font-weight:900">${monthOT>0?'+'+monthOT.toFixed(2)+'h':'—'}</td>
     <td style="color:#d97706;font-weight:900">${monthUT>0?'-'+monthUT.toFixed(2)+'h':'—'}</td>
     <td>${monthTotal.toFixed(1)}h</td>
+    <td style="color:var(--green);font-weight:900;font-size:12px">${(monthTotal+monthOT).toFixed(1)}h</td>
   </tr>`;
 
   document.getElementById('dtr-tbody').innerHTML = tbodyHtml;
